@@ -11,6 +11,8 @@
 
 `npm run start` in root folder
 
+3. Change YOUR_HOST const inside server.js with your host to allow requests from the client.
+
 3. Connect your app to the server
 
 Change */src/app/app.modules.ts* from [Angular YouTube Player](https://github.com/quead/angular-youtube-player "Angular YouTube Player")
