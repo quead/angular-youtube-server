@@ -1,4 +1,5 @@
 const YOUR_HOST = 'https://habarnam.io';
+var fs = require('fs');
 let sv = require('socket.io');
 let io = sv.listen(8889);
 io.origins((origin, callback) => {
