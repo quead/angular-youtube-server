@@ -3,10 +3,10 @@ var fs = require('fs');
 let sv = require('socket.io');
 let io = sv.listen(8889);
 io.origins((origin, callback) => {
- if (origin !== YOUR_HOST) {
-   return callback('origin not allowed', false);
- }
- callback(null, true);
+    if (origin !== YOUR_HOST) {
+        return callback('origin not allowed', false);
+    }
+    callback(null, true);
 });
 
 global.guid = function () {
@@ -62,7 +62,6 @@ class Database {
     }
 
     writeDB() {
-        // console.log(this.data);
         fs.writeFileSync(this.name, JSON.stringify(this.data));
     }
 
@@ -75,7 +74,96 @@ class Database {
 
 var db = new Database('./db.json');
 
+class Client {
+    constructor() {
+        this.clients = [];
+    }
+
+    processData(data) {
+        this.clients.push(data);
+    }
+
+    getClients() {
+        return this.clients;
+    }
+
+    existClient(clientName) {
+        const client = this.clients.filter(client => client.name === clientName);
+        console.log(client);
+        return client;
+    }
+
+    removeClient(clientID) {
+        const index = this.clients.indexOf(clientID);
+        this.clients.splice(index, 1);
+    }
+}
+
+var newClient = new Client();
+
+setInterval(() => {
+    console.log(newClient.getClients());
+}, 5000);
+
 io.on('connection', function (socket) {
+    let clientData = {
+        id: '',
+        name: '',
+        room: ''
+    }
+
+    socket.on('disconnect', () => {
+        if (clientData.id !== '') {
+            socket.leave(clientData.room);
+            io.to(clientData.room).emit('user_left', clientData.name);
+            newClient.removeClient(clientData.id);
+        }
+    });
+    
+    socket.on('join_session', ({session, name}, callback) => {
+        clientData.name = name;
+        clientData.room = session;
+        clientData.id = socket.id;
+        statusData = 'OK';
+
+        if (newClient.existClient(clientData.name).length > 0) {
+            clientData.name = clientData.id;
+            statusData = 'USERNAME_EXIST';
+        } else if (clientData.name === '' || clientData.name == null) {
+            clientData.name = clientData.id;
+            statusData = 'USERNAME_EMPTY';
+        } else {
+            clientData.name = name;
+        }
+
+        socket.join(clientData.room);
+        newClient.processData(clientData);
+
+        callback({
+            client: clientData,
+            status: statusData
+        })
+    });
+
+    socket.on('leave_session', (roomName) => {
+        socket.leave(roomName);
+        io.to(roomName).emit('user_left', clientData.name);
+        newClient.removeClient(clientData.id);
+    });
+
+    socket.on('change_username', ({name}, callback) => {
+        statusData = '';
+        
+        if (newClient.existClient(clientData.name).length < 1) {
+            console.log(name);
+            statusData = 'OK';
+        }
+
+        callback({
+            status: statusData
+        })
+    });
+
     // socket.emit('get_session', '') - create new session
     // socket.emit('get_session, {session: 'HASH'}) - get session key
     socket.on('get_session', (data, callback) => {
@@ -127,26 +215,6 @@ io.on('connection', function (socket) {
         } catch (e) {
             console.log(e);
         }
-    });
-    
-    socket.on('show_msg_everyone', (roomName, msg) => {
-        io.to(roomName).emit('alert_msg', msg);
-    })
-
-    // socket.on('disconnect', function () {
-    //     // console.log('disconnected');
-    // });
- 
-    socket.on('join_session', (roomName) => {
-        socket.join(roomName);
-        console.log('joined in the '+ roomName);
-        io.to(roomName).emit('alert_notify', 30);
-    });
-
-    socket.on('leave_session', (roomName) => {
-        socket.leave(roomName);
-        console.log('leaved the room '+ roomName);
-        io.to(roomName).emit('alert_notify', 31);
     });
 
     socket.on('update_player', (data) => {
