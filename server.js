@@ -83,7 +83,7 @@ class Client {
         this.clients.push(data);
     }
 
-    getClients() {
+    getAllClients() {
         return this.clients;
     }
 
@@ -98,20 +98,26 @@ class Client {
     }
 
     removeClient(clientID) {
-        const index = this.clients.indexOf(clientID);
+        const foundClient = this.clients.find(client => client.id === clientID);
+        const index = this.clients.indexOf(foundClient);
         this.clients.splice(index, 1);
     }
 
     updateClient({id: clientID, updateData: newData}) {
         const clientIndex = this.clients.findIndex(client => client.id === clientID);
-        this.clients[clientIndex] = newData;
+        this.clients[clientIndex].room = newData.room;
+    }
+
+    getClientsFromRoom(roomID) {
+        const client = this.clients.filter(client => client.room === roomID);
+        return client;
     }
 }
 
 var newClient = new Client();
 
 // setInterval(() => {
-//     console.log(newClient.getClients());
+//     console.log(newClient.getAllClients());
 // }, 5000);
 
 io.on('connection', function (socket) {
@@ -124,8 +130,8 @@ io.on('connection', function (socket) {
     socket.on('disconnect', () => {
         if (clientData.id !== '') {
             socket.leave(clientData.room);
-            io.to(clientData.room).emit('user_left', clientData.name);
             newClient.removeClient(clientData.id);
+            io.to(clientData.room).emit('user_left', {name: clientData.name, clients: newClient.getClientsFromRoom(clientData.room)});
         }
     });
     
@@ -148,6 +154,7 @@ io.on('connection', function (socket) {
 
         socket.join(clientData.room);
         newClient.processData(clientData);
+        io.to(clientData.room).emit('user_joined', {name: clientData.name, clients: newClient.getClientsFromRoom(clientData.room)});
 
         callback({
             client: clientData,
@@ -157,12 +164,12 @@ io.on('connection', function (socket) {
 
     socket.on('leave_session', (roomName) => {
         socket.leave(roomName);
-        io.to(roomName).emit('user_left', clientData.name);
         newClient.removeClient(clientData.id);
+        io.to(roomName).emit('user_left', {name: clientData.name, clients: newClient.getClientsFromRoom(clientData.room)});
     });
 
     socket.on('change_username', ({name}, callback) => {
-        statusData = '';
+        statusData = 'USERNAME_ERROR';
         const IS_CLIENTNAME_NOT_EXIST = newClient.existClientName(name).length < 1;
         
         if (IS_CLIENTNAME_NOT_EXIST && name !== '') {
@@ -172,9 +179,6 @@ io.on('connection', function (socket) {
                 updateData: clientData
             });
             statusData = 'USERNAME_OK';
-            console.log(newClient.getClients());
-        } else {
-            statusData = 'USERNAME_ERROR';
         }
 
         callback({
