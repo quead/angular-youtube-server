@@ -1,7 +1,7 @@
-const YOUR_HOST = 'https://habarnam.io';
+const YOUR_HOST = 'http://localhost:4200';
 var fs = require('fs');
 let sv = require('socket.io');
-let io = sv.listen(8889);
+let io = sv.listen(8888);
 io.origins((origin, callback) => {
     if (origin !== YOUR_HOST) {
         return callback('origin not allowed', false);
@@ -87,9 +87,13 @@ class Client {
         return this.clients;
     }
 
-    existClient(clientName) {
+    existClient(clientID) {
+        const client = this.clients.filter(client => client.id === clientID);
+        return client;
+    }
+
+    existClientName(clientName) {
         const client = this.clients.filter(client => client.name === clientName);
-        console.log(client);
         return client;
     }
 
@@ -97,16 +101,21 @@ class Client {
         const index = this.clients.indexOf(clientID);
         this.clients.splice(index, 1);
     }
+
+    updateClient({id: clientID, updateData: newData}) {
+        const clientIndex = this.clients.findIndex(client => client.id === clientID);
+        this.clients[clientIndex] = newData;
+    }
 }
 
 var newClient = new Client();
 
-setInterval(() => {
-    console.log(newClient.getClients());
-}, 5000);
+// setInterval(() => {
+//     console.log(newClient.getClients());
+// }, 5000);
 
 io.on('connection', function (socket) {
-    let clientData = {
+    var clientData = {
         id: '',
         name: '',
         room: ''
@@ -124,9 +133,10 @@ io.on('connection', function (socket) {
         clientData.name = name;
         clientData.room = session;
         clientData.id = socket.id;
-        statusData = 'OK';
+        let statusData = 'USERNAME_OK';
+        const IS_CLIENTNAME_EXIST = newClient.existClientName(clientData.name).length > 0;
 
-        if (newClient.existClient(clientData.name).length > 0) {
+        if (IS_CLIENTNAME_EXIST) {
             clientData.name = clientData.id;
             statusData = 'USERNAME_EXIST';
         } else if (clientData.name === '' || clientData.name == null) {
@@ -153,13 +163,22 @@ io.on('connection', function (socket) {
 
     socket.on('change_username', ({name}, callback) => {
         statusData = '';
+        const IS_CLIENTNAME_NOT_EXIST = newClient.existClientName(name).length < 1;
         
-        if (newClient.existClient(clientData.name).length < 1) {
-            console.log(name);
-            statusData = 'OK';
+        if (IS_CLIENTNAME_NOT_EXIST && name !== '') {
+            clientData.name = name;
+            newClient.updateClient({
+                id: clientData.id,
+                updateData: clientData
+            });
+            statusData = 'USERNAME_OK';
+            console.log(newClient.getClients());
+        } else {
+            statusData = 'USERNAME_ERROR';
         }
 
         callback({
+            data: clientData,
             status: statusData
         })
     });
