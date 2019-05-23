@@ -109,16 +109,14 @@ class Client {
     }
 
     getClientsFromRoom(roomID) {
+        // console.log(roomID);
+        // console.log(this.clients.filter(client => client.room = roomID));
         const client = this.clients.filter(client => client.room === roomID);
         return client;
     }
 }
 
 var newClient = new Client();
-
-// setInterval(() => {
-//     console.log(newClient.getAllClients());
-// }, 5000);
 
 io.on('connection', function (socket) {
     var clientData = {
@@ -158,18 +156,18 @@ io.on('connection', function (socket) {
 
         callback({
             client: clientData,
-            status: statusData
+            status: statusData,
         })
     });
 
     socket.on('leave_session', (roomName) => {
         socket.leave(roomName);
         newClient.removeClient(clientData.id);
-        io.to(roomName).emit('user_left', {name: clientData.name, clients: newClient.getClientsFromRoom(clientData.room)});
+        io.to(roomName).emit('user_left', {name: clientData.name, clients: newClient.getClientsFromRoom(roomName)});
     });
 
-    socket.on('change_username', ({name}, callback) => {
-        statusData = 'USERNAME_ERROR';
+    socket.on('change_username', ({name}) => {
+        console.log(clientData);
         const IS_CLIENTNAME_NOT_EXIST = newClient.existClientName(name).length < 1;
         
         if (IS_CLIENTNAME_NOT_EXIST && name !== '') {
@@ -178,13 +176,8 @@ io.on('connection', function (socket) {
                 id: clientData.id,
                 updateData: clientData
             });
-            statusData = 'USERNAME_OK';
+            io.to(clientData.room).emit('username_changed', {name: clientData.name, clients: newClient.getClientsFromRoom(clientData.room)});
         }
-
-        callback({
-            data: clientData,
-            status: statusData
-        })
     });
 
     // socket.emit('get_session', '') - create new session
