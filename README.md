@@ -15,4 +15,4 @@
 
 3. Connect your app to the server
 
-Change */src/app/app.modules.ts* from [Angular YouTube Player](https://github.com/quead/angular-youtube-player "Angular YouTube Player")
+Change */src/environments/environment.ts* from [Angular YouTube Player](https://github.com/quead/angular-youtube-player "Angular YouTube Player")
