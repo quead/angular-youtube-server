@@ -11,6 +11,6 @@
   "license": "ISC",
   "dependencies": {
     "fs": "0.0.1-security",
-    "socket.io": "^2.2.0"
+    "socket.io": "^3.0.0"
   }
 }
